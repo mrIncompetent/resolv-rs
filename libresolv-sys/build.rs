@@ -1,59 +1,38 @@
-use std::error::Error;
-use std::fs::{self, File};
-use std::io::Write; // File.write_all()
+extern crate bindgen;
+
+use std::env;
+use std::fmt::Debug;
 use std::path::PathBuf;
-use std::process::Command;
-use std::str;
 
-fn main() -> Result<(), Box<dyn Error>> {
-    static BINDING: &str = "resolv.rs";
-    static HEADER: &str = "/usr/include/resolv.h";
-    let mut cmd;
-    let mut output;
+#[derive(Debug)]
+pub struct ResolvCallbacks {}
 
-    eprintln!("Generating binding {:?} from {:?} ...\n", BINDING, HEADER);
-    cmd = Command::new("bindgen");
-    cmd.args(["--with-derive-default", HEADER]);
-    output = cmd.output()?;
-    if !output.status.success() {
-        let msg = str::from_utf8(output.stderr.as_slice())?;
-        eprintln!("\"\"\"\n{}\"\"\"\n", msg);
-        panic!("{:?}", cmd);
+impl bindgen::callbacks::ParseCallbacks for ResolvCallbacks {
+    fn item_name(&self, original_item_name: &str) -> Option<String> {
+        return match original_item_name {
+            "__res_ninit" => Some(original_item_name.trim_start_matches("__").to_owned()),
+            "__res_nquery" => Some(original_item_name.trim_start_matches("__").to_owned()),
+            "__res_nsearch" => Some(original_item_name.trim_start_matches("__").to_owned()),
+            _ => Some(original_item_name.to_owned()),
+        };
     }
+}
 
-    let lints = fs::read("resolv.lints")?;
-    let mut f = File::create(BINDING)?;
-    f.write_all(lints.as_slice())?;
-    f.write_all(output.stdout.as_slice())?;
+fn main() {
+    println!("cargo:rustc-link-search=/usr/lib");
 
-    eprintln!(
-        "Checking available libresolv adapters to the generated binding {:?} ...\n",
-        BINDING
-    );
+    println!("cargo:rustc-link-lib=resolv");
 
-    let mut paths: Vec<PathBuf> = fs::read_dir("lib.d")?.map(|e| e.unwrap().path()).collect();
-    paths.sort_unstable();
-    for path in paths.iter().rev() {
-        eprintln!("Trying {:?} ...\n", path);
-        fs::copy(path, "lib.rs")?;
-        cmd = Command::new("rustc");
-        cmd.args(["--emit", "dep-info=/dev/null", "lib.rs"]);
-        output = cmd.output()?;
-        if output.status.success() {
-            eprintln!("Success\n");
-            break;
-        } else {
-            let msg = str::from_utf8(output.stderr.as_slice())?;
-            eprintln!("\"\"\"\n{}\"\"\"\n", msg);
-            fs::remove_file("lib.rs")?;
-        }
-    }
+    let bindings = bindgen::Builder::default()
+        .header("/usr/include/resolv.h")
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .parse_callbacks(Box::new(ResolvCallbacks {}))
+        .derive_default(true)
+        .generate()
+        .expect("Unable to generate bindings");
 
-    if !output.status.success() {
-        panic!("None of the available adapters compiled successfully!");
-    }
-
-    println!("cargo:rustc-flags=-l resolv");
-
-    Ok(())
+    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+    bindings
+        .write_to_file(out_path.join("resolv.rs"))
+        .expect("Couldn't write bindings!");
 }
