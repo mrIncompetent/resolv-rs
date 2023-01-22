@@ -24,12 +24,12 @@ impl RecordData for MX {
 
         let mut buffer: [u8; MAXDNAME as usize] = [0; MAXDNAME as usize];
 
-        let size = unsafe { ::libresolv_sys::ns_name_uncompress(
+        let size = unsafe { libresolv_sys::ns_name_uncompress(
             msg._msg,
             msg._eom,
             rr.rdata.offset(2),
             buffer.as_mut_ptr() as *mut i8,
-            MAXDNAME as u64)
+            MAXDNAME as usize)
         };
         if size < 0 {
             return Err(Error::UncompressError);

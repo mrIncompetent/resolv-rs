@@ -27,12 +27,12 @@ impl RecordData for SRV {
 
         let mut buffer: [u8; MAXHOSTNAMELEN as usize] = [0; MAXHOSTNAMELEN as usize];
         let size = unsafe {
-            ::libresolv_sys::ns_name_uncompress(
+            libresolv_sys::ns_name_uncompress(
                 msg._msg,
                 msg._eom,
                 rr.rdata.offset(6),
                 buffer.as_mut_ptr() as *mut i8,
-                MAXHOSTNAMELEN as u64,
+                MAXHOSTNAMELEN as usize,
             )
         };
         if size < 0 {

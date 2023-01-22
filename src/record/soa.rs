@@ -42,12 +42,12 @@ impl RecordData for SOA {
         let mut offset = 0;
 
         soa.mname = {
-            let count = unsafe { ::libresolv_sys::ns_name_uncompress(
+            let count = unsafe { libresolv_sys::ns_name_uncompress(
                 msg._msg,
                 msg._eom,
                 rr.rdata.offset(offset),
                 buffer.as_mut_ptr() as *mut i8,
-                MAXDNAME as u64)
+                MAXDNAME as usize)
             };
             if count < 0 {
                 return Err(Error::UncompressError);
@@ -58,12 +58,12 @@ impl RecordData for SOA {
         };
 
         soa.rname = {
-            let count = unsafe { ::libresolv_sys::ns_name_uncompress(
+            let count = unsafe { libresolv_sys::ns_name_uncompress(
                 msg._msg,
                 msg._eom,
                 rr.rdata.offset(offset),
                 buffer.as_mut_ptr() as *mut i8,
-                MAXDNAME as u64)
+                MAXDNAME as usize)
             };
             if count < 0 {
                 return Err(Error::UncompressError);
